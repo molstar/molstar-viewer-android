@@ -1,13 +1,11 @@
 {
   "package": "molstar",
-  "version": "5.10.1",
+  "version": "5.11.0",
+  "filename": "molstar-5.11.0.tgz",
+  "tarballSha256": "37fc3df9c1b2d8cd4ab5a90fef316ba1a9fcd9bc1f760095453f6c06dcf10c46",
   "source": "npm",
-  "copiedRuntime": [
-    "build/viewer/molstar.js",
-    "build/viewer/molstar.css",
-    "build/viewer/theme/dark.css",
-    "build/viewer/favicon.ico",
-    "build/viewer/images"
-  ],
-  "policy": "official prebuilt runtime bytes; no local modifications"
+  "copiedPath": "build/viewer",
+  "excluded": [
+    "**/*.map"
+  ]
 }
