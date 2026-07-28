@@ -18,7 +18,7 @@ The compatibility checks cover only the public surface required by the host, inc
 | Workflow | Trigger | Result |
 |---|---|---|
 | `ci.yml` | push, pull request, manual | candidate debug artifact and emulator smoke evidence |
-| `molstar-update.yml` | weekly, manual | bounded upstream-update branch and candidate |
+| `molstar-update.yml` | weekly, manual | emulator-verified upstream-update branch and candidate |
 | `promote.yml` | manual | signed stable GitHub Release |
 
 Workflow YAML remains thin; build, update, signing, and publication logic lives in repository scripts so it can also run locally.
@@ -39,7 +39,7 @@ the OpenGL ES 3.0 that Mol*'s WebGL2 renderer needs. It confirms that the Viewer
 `ready` and that a real structure file completes loading through an Android intent, but it
 does not replace approval on a physical device before a stable release.
 
-Automated upstream preparation is restricted to `app/src/main/assets/viewer/vendor/molstar/**` and never force-pushes an existing update branch.
+Automated upstream preparation is restricted to `app/src/main/assets/viewer/vendor/molstar/**` and never force-pushes an existing update branch. The update workflow runs the emulator gate on its own signed candidate before creating a branch, because a branch pushed with `GITHUB_TOKEN` does not start another workflow and therefore never reaches `ci.yml`.
 
 ## Signing and stable releases
 

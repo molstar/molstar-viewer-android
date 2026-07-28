@@ -119,6 +119,31 @@ jobs:
           BUILD_CANDIDATE: '1'
         run: bash scripts/automation/prepare-molstar-update.sh "$TARGET_VERSION"
 
+      - name: Enable KVM
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # A branch pushed with GITHUB_TOKEN does not start another workflow, so the
+      # runtime gate cannot be delegated to ci.yml and runs here instead. A branch
+      # and pull request are created only after the candidate has actually opened a
+      # structure file on a device.
+      - name: Verify the candidate on an emulator
+        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/molstar-update/emulator-smoke
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+          disable-animations: true
+          script: bash scripts/ci/emulator-smoke.sh candidate release
+
       - name: Commit and push update branch
         if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
         env:
@@ -151,7 +176,13 @@ jobs:
           - Change boundary: \`app/src/main/assets/viewer/vendor/molstar/**\`
           - Candidate APK and machine-readable provenance are attached to this workflow run.
 
-          Merge only after installing the candidate APK on a real Android device.
+          The signed candidate reached \`ready\` on a headless API 36 emulator and
+          completed loading a structure file through an Android intent, with no
+          Viewer error event. Evidence is attached to this workflow run.
+
+          That gate covers the current Android System WebView only. Approval on a
+          physical device is still required before a stable release, not before
+          this merge.
           BODY
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \
@@ -160,13 +191,15 @@ jobs:
             --title "chore: update Molstar to $TARGET_VERSION" \
             --body-file "$body"
 
+      # Uploaded even when a step above failed, because an unattended weekly run is
+      # only actionable if its evidence survives the failure.
       - name: Upload candidate and update report
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: always() && steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
         uses: actions/upload-artifact@v7
         with:
           name: molstar-${{ steps.check.outputs.target }}-candidate
           path: ${{ runner.temp }}/molstar-update/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
 
       - name: Write no-update summary
