@@ -110,4 +110,5 @@ android {
 
 dependencies {
     implementation("androidx.webkit:webkit:1.16.0")
+    testImplementation("junit:junit:4.13.2")
 }

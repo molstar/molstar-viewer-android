@@ -21,6 +21,7 @@ required=(
   app/src/main/assets/viewer/vendor/molstar/VERSION
   app/src/main/assets/viewer/vendor/molstar/UPSTREAM.json
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
+  app/src/test/java/io/github/daylight00/molstarandroid/NativeFileTransportTest.kt
   scripts/device/fixtures/minimal-ala.pdb
   scripts/device/verify-apk.sh
   scripts/device/verify-debug-apk.sh
@@ -214,6 +215,15 @@ case "$VERIFY_VARIANT" in
 esac
 
 if [[ "$do_build" == "1" ]]; then
+  # Unit tests need the SDK, so they run with the build rather than in the
+  # static pass. They cover the transport rules that decide file names and which
+  # directory may be deleted.
+  ./gradlew --no-daemon ":app:test${VERIFY_VARIANT}UnitTest"
+  TEST_RESULTS="app/build/test-results/test${VERIFY_VARIANT}UnitTest"
+  [[ -d "$TEST_RESULTS" ]] && ls "$TEST_RESULTS"/*.xml >/dev/null 2>&1 || {
+    echo "no unit test results were produced in $TEST_RESULTS" >&2
+    exit 1
+  }
   ./gradlew --no-daemon ":app:assemble$VERIFY_VARIANT"
   APK="$(find "app/build/outputs/apk/$variant_path" -maxdepth 1 -type f -name '*.apk' -print -quit 2>/dev/null || true)"
   [[ -n "$APK" && -s "$APK" ]] || { echo "$VERIFY_VARIANT APK was not produced" >&2; exit 1; }

@@ -317,7 +317,7 @@ class MainActivity : Activity() {
                     files.put(
                         JSONObject()
                             .put("url", url)
-                            .put("name", normalizeDisplayName(name, index))
+                            .put("name", NativeFileTransport.normalizeDisplayName(name, index))
                             .put("type", runCatching { contentResolver.getType(uri) }.getOrNull() ?: ""),
                     )
                 }
@@ -358,15 +358,9 @@ class MainActivity : Activity() {
             }
     }
 
-    private fun normalizeDisplayName(name: String, index: Int): String {
-        val leaf = name.substringAfterLast('/').substringAfterLast('\\')
-        val normalized = leaf.replace(Regex("[\\u0000-\\u001f\\u007f]"), "_").trim()
-        return normalized.ifBlank { "file-${index + 1}" }
-    }
-
     private fun cleanupImportBatch(batchId: String?) {
-        if (batchId.isNullOrBlank() || !UUID_PATTERN.matches(batchId)) return
-        File(viewerFilesDir, batchId).deleteRecursively()
+        val id = batchId?.takeIf(NativeFileTransport::isBatchId) ?: return
+        File(viewerFilesDir, id).deleteRecursively()
     }
 
     private fun dispatch(command: JSONObject) {
@@ -581,8 +575,5 @@ class MainActivity : Activity() {
     companion object {
         private const val TAG = "MolstarAndroid"
         private const val REQUEST_WEB_FILE_CHOOSER = 1002
-        private val UUID_PATTERN = Regex(
-            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-        )
     }
 }
