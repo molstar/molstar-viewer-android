@@ -5,14 +5,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APK_PATH="${APK_PATH:-${1:-}}"
 FIXTURE="${FIXTURE:-$ROOT/scripts/device/fixtures/minimal-ala.pdb}"
 APP_ID="${APP_ID:-io.github.daylight00.molstarandroid.candidate}"
-ACTIVITY="${ACTIVITY:-$APP_ID/.MainActivity}"
+# The launcher class stays in the Gradle namespace, which the candidate and debug
+# applicationId suffixes do not share, so the "$APP_ID/.Class" shorthand cannot be used.
+ACTIVITY="${ACTIVITY:-$APP_ID/io.github.daylight00.molstarandroid.MainActivity}"
 WAIT_SECONDS="${WAIT_SECONDS:-45}"
 KEEP_DEVICE_FIXTURE="${KEEP_DEVICE_FIXTURE:-0}"
 UTC="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE_DIR="${EVIDENCE_DIR:-$HOME/Downloads/molstar-android-viewer-device-results/device-smoke-$UTC}"
 REMOTE_NAME="molstar-android-smoke-$UTC.pdb"
 REMOTE_PATH="/sdcard/Download/$REMOTE_NAME"
-DOCUMENT_URI="content://com.android.externalstorage.documents/document/primary%3ADownload%2F$REMOTE_NAME"
+MEDIA_URI=""
 
 [[ -n "$APK_PATH" ]] || {
   APK_PATH="$(find "$ROOT/app/build/outputs/apk/candidate/release" -maxdepth 1 -type f -name '*.apk' -print -quit 2>/dev/null || true)"
@@ -51,6 +53,9 @@ fi
 serial="$("${adb_cmd[@]}" get-serialno | tr -d '\r')"
 cleanup() {
   if [[ "$KEEP_DEVICE_FIXTURE" != "1" ]]; then
+    if [[ -n "$MEDIA_URI" ]]; then
+      "${adb_cmd[@]}" shell content delete --uri "$MEDIA_URI" >/dev/null 2>&1 || true
+    fi
     "${adb_cmd[@]}" shell rm -f "$REMOTE_PATH" >/dev/null 2>&1 || true
   fi
 }
@@ -73,6 +78,36 @@ wait_for_log() {
   return 1
 }
 
+# adb shell cannot delegate a Storage Access Framework document grant it does not
+# already hold, so the fixture is published through MediaStore and opened by its
+# media URI. This still exercises the content:// path the app sees from a file manager.
+resolve_media_uri() {
+  local deadline=$((SECONDS + WAIT_SECONDS)) id
+  while (( SECONDS < deadline )); do
+    "${adb_cmd[@]}" shell content call --uri content://media/external \
+      --method scan_file --arg "$REMOTE_PATH" >/dev/null 2>&1 || true
+    id="$("${adb_cmd[@]}" shell content query --uri content://media/external/downloads \
+      --projection _id:_display_name 2>/dev/null | tr -d '\r' |
+      awk -F', ' -v name="$REMOTE_NAME" '
+        {
+          row_id = ""; display = ""
+          for (i = 1; i <= NF; i++) {
+            field = $i
+            if (field ~ /_id=/) { sub(/.*_id=/, "", field); row_id = field }
+            else if (field ~ /_display_name=/) { sub(/.*_display_name=/, "", field); display = field }
+          }
+          if (display == name && row_id != "") { print row_id; exit }
+        }')"
+    if [[ -n "$id" ]]; then
+      printf 'content://media/external/downloads/%s\n' "$id"
+      return 0
+    fi
+    sleep 1
+  done
+  printf 'timed out waiting for MediaStore to index: %s\n' "$REMOTE_PATH" >&2
+  return 1
+}
+
 printf 'DEVICE_SERIAL=%s\n' "$serial"
 "${adb_cmd[@]}" shell getprop > "$EVIDENCE_DIR/device-getprop.txt"
 "${adb_cmd[@]}" shell cmd webviewupdate getCurrentWebViewPackage > "$EVIDENCE_DIR/webview-provider.txt" 2>&1 || true
@@ -83,8 +118,10 @@ printf 'DEVICE_SERIAL=%s\n' "$serial"
 wait_for_log 'Mol* viewer ready event' '"type":"ready"'
 
 "${adb_cmd[@]}" push "$FIXTURE" "$REMOTE_PATH" | tee "$EVIDENCE_DIR/adb-push.txt"
+MEDIA_URI="$(resolve_media_uri)"
+printf 'MEDIA_URI=%s\n' "$MEDIA_URI" | tee "$EVIDENCE_DIR/media-uri.txt"
 "${adb_cmd[@]}" shell am start -W \
-  -a android.intent.action.VIEW -d "$DOCUMENT_URI" -t chemical/x-pdb \
+  -a android.intent.action.VIEW -d "$MEDIA_URI" -t chemical/x-pdb \
   -f 0x00000001 -n "$ACTIVITY" | tee "$EVIDENCE_DIR/launch-structure.txt"
 wait_for_log 'native PDB file completion' '"type":"command-completed"' '"type":"open-files"'
 
@@ -107,6 +144,7 @@ DEVICE_RC=0
 DEVICE_SERIAL=$serial
 APP_ID=$APP_ID
 ACTIVITY=$ACTIVITY
+MEDIA_URI=$MEDIA_URI
 APK_PATH=$APK_PATH
 APK_SHA256=$(sha256sum "$APK_PATH" | awk '{print $1}')
 FIXTURE_SHA256=$(sha256sum "$FIXTURE" | awk '{print $1}')
