@@ -44,14 +44,12 @@ requireMatch(vendorIndex > diagnosticsIndex, 'boot diagnostics must load before 
 requireMatch(customizationIndex > vendorIndex, 'customization must load after the upstream Mol* bundle');
 requireMatch(bridgeIndex > customizationIndex, 'platform bridge must load after customization');
 requireMatch(/#app\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s.test(index), '#app must establish a full-viewport positioned container');
-requireMatch(index.includes('id="custom-ui-root"'), 'empty custom UI root is missing');
-requireMatch(/#custom-ui-root:empty\s*\{[^}]*display:\s*none;/s.test(index), 'empty custom UI root must have no visual effect');
 requireMatch(diagnostics.includes("window.addEventListener('error'"), 'global JavaScript error capture is missing');
 requireMatch(diagnostics.includes("window.addEventListener('unhandledrejection'"), 'promise rejection capture is missing');
 requireMatch(bridge.includes('window.molstar.Viewer.create'), 'bridge must guard and invoke the viewer API through window.molstar');
 requireMatch(vendor.includes('loadFiles('), 'upstream Mol* bundle must expose the Viewer loadFiles capability');
 requireMatch(bridge.includes('viewer.loadFiles(files)'), 'native files must be delegated to Mol* loadFiles()');
-requireMatch(bridge.includes("case 'open-files'"), 'native multi-file bridge command is missing');
+requireMatch(bridge.includes("'open-files'"), 'native multi-file bridge command is missing');
 requireMatch(bridge.includes("emit('ready'"), 'bridge must expose the ready event');
 requireMatch(!bridge.includes('layoutShowLog'), 'mobile customization must not be embedded in the platform bridge');
 const optionsMatch = customization.match(/const viewerOptions = Object\.freeze\(\{([\s\S]*?)\}\);/);
@@ -63,7 +61,6 @@ requireMatch(
 );
 requireMatch(customization.includes('layoutShowLog: false'), 'minimal mobile customization must hide the non-live log panel');
 requireMatch(!customization.includes('viewportShowExpand'), 'Mol* browser expansion control must use the upstream default');
-requireMatch(customization.includes('root.replaceChildren()'), 'custom UI layer must initialize as an empty root');
 requireMatch(/<div id="boot-status"[^>]*\shidden(?:\s|>)/.test(index), 'boot diagnostic surface must be hidden during normal startup');
 requireMatch(index.includes('role="alert"'), 'boot diagnostic surface must be error-only alert semantics');
 requireMatch(!index.includes('Starting Mol*'), 'custom loading screen must remain disabled');

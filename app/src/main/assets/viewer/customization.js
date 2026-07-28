@@ -8,16 +8,8 @@
         layoutShowLog: false,
     });
 
-    function mount(context) {
-        const root = context && context.root;
-        if (!root) throw new Error('The custom UI root is missing');
-        root.replaceChildren();
-        // Intentionally empty. Future custom UI mounts here without modifying Mol* DOM.
-    }
-
     window.MolCustomization = Object.freeze({
-        contractVersion: 2,
+        contractVersion: 3,
         viewerOptions,
-        mount,
     });
 })();

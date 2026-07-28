@@ -11,7 +11,7 @@ bash scripts/verify.sh
 
 The synchronization script downloads the npm release, replaces the complete prebuilt Viewer runtime, records provenance, and regenerates checksums. Do not edit vendored files by hand.
 
-The compatibility checks cover only the public surface required by the host, including `Viewer.create`, `viewer.loadFiles`, URL/PDB commands used by `app-bridge.js`, and the default and dark stylesheets.
+The compatibility checks cover only the public surface required by the host: `Viewer.create`, `viewer.loadFiles`, and the default and dark stylesheets. Nothing else in the Viewer API is used, so nothing else has to keep working for an update to be safe.
 
 ## Automation
 

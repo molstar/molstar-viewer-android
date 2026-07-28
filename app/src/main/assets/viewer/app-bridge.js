@@ -52,32 +52,8 @@
 
         emit('command-started', { type, batchId });
         try {
-            switch (type) {
-                case 'open-files':
-                    await loadNativeFiles(payload);
-                    break;
-                case 'open-file':
-                    await loadNativeFiles({ files: [payload] });
-                    break;
-                case 'open-structure':
-                    await viewer.loadStructureFromUrl(
-                        String(payload.url),
-                        String(payload.format || 'mmcif'),
-                        Boolean(payload.binary),
-                    );
-                    break;
-                case 'open-pdb':
-                    await viewer.loadPdb(String(payload.id));
-                    break;
-                case 'open-alphafold':
-                    await viewer.loadAlphaFoldDb(String(payload.id));
-                    break;
-                case 'clear':
-                    await viewer.plugin.clear();
-                    break;
-                default:
-                    throw new Error(`Unsupported command: ${String(type)}`);
-            }
+            if (type !== 'open-files') throw new Error(`Unsupported command: ${String(type)}`);
+            await loadNativeFiles(payload);
             emit('command-completed', { type, batchId });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -92,7 +68,6 @@
             nativeFiles: true,
             multipleNativeFiles: true,
             systemTheme: true,
-            customUiRoot: true,
         }),
         dispatch,
         subscribe(listener) {
@@ -120,13 +95,6 @@
         }
 
         window.__molstarViewer = viewer;
-        if (customization && typeof customization.mount === 'function') {
-            customization.mount({
-                root: document.getElementById('custom-ui-root'),
-                viewer,
-                emit,
-            });
-        }
         if (window.MolBoot) window.MolBoot.markReady();
         emit('ready', {
             molstarVersion: window.molstar.version || 'unknown',

@@ -7,11 +7,6 @@ const loadedBatches = [];
 
 const roots = {
     app: {},
-    'custom-ui-root': {
-        replaceChildren() {
-            this.initializedEmpty = true;
-        },
-    },
 };
 
 const context = {
@@ -65,10 +60,6 @@ context.molstar = {
     Viewer: {
         create: async () => ({
             loadFiles: async files => loadedBatches.push(files),
-            loadStructureFromUrl: async () => {},
-            loadPdb: async () => {},
-            loadAlphaFoldDb: async () => {},
-            plugin: { clear: async () => {} },
         }),
     },
 };
@@ -108,9 +99,6 @@ if (loadedBatches.length !== 1 || loadedBatches[0].length !== 2) {
 }
 if (loadedBatches[0][0].name !== 'density.map.gz' || loadedBatches[0][1].name !== 'trajectory.xtc') {
     throw new Error('native file names were not preserved for Mol* format recognition');
-}
-if (!roots['custom-ui-root'].initializedEmpty) {
-    throw new Error('custom UI layer did not initialize as an empty root');
 }
 if (!events.some(event => event.type === 'command-completed' && event.payload.batchId === 'contract-batch')) {
     throw new Error('native file completion event did not preserve the transport batch id');

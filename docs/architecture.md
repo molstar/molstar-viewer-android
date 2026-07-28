@@ -58,7 +58,7 @@ Native files are copied into a private temporary directory and exposed through `
 layoutShowLog: false
 ```
 
-An empty `#custom-ui-root` is reserved for optional future modules without modifying upstream DOM or stylesheets.
+Nothing else is reserved here. A future module gets its mount point when it exists, not before.
 
 ## Upgrade boundary
 

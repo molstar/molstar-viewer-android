@@ -124,7 +124,7 @@ INDEX=app/src/main/assets/viewer/index.html
 
 grep -q 'window.MolApp' "$BRIDGE"
 grep -q 'viewer.loadFiles(files)' "$BRIDGE"
-grep -q 'case '\''open-files'\''' "$BRIDGE"
+grep -q "'open-files'" "$BRIDGE"
 grep -q 'WebViewAssetLoader' "$MAIN"
 grep -q 'onShowFileChooser' "$MAIN"
 grep -q 'WindowInsets.Type.systemBars()' "$MAIN"
@@ -137,7 +137,6 @@ grep -q 'Intent.ACTION_SEND_MULTIPLE' "$MAIN"
 grep -q 'ViewerContract.openFiles' "$MAIN"
 grep -q 'resetNativeFileTransportDirectory' "$MAIN"
 grep -q 'fun openFiles' "$CONTRACT"
-grep -q 'fun openAlphaFold' "$CONTRACT"
 grep -q 'layoutShowLog: false' "$CUSTOM"
 if grep -q 'viewportShowExpand' "$CUSTOM"; then
   echo 'layoutShowLog must be the only active custom Viewer option' >&2
