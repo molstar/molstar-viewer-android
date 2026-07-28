@@ -39,8 +39,11 @@ CHANNEL_CAP="$(capitalize "$CHANNEL")"
 TYPE_CAP="$(capitalize "$BUILD_TYPE")"
 VARIANT="$CHANNEL_CAP$TYPE_CAP"
 TASK=":app:assemble$VARIANT"
+# This is the entry point CI uses, and it calls verify.sh without a build, so the
+# unit tests have to be requested here too or they never run on a pull request.
+TEST_TASK=":app:test${VARIANT}UnitTest"
 
-./gradlew --no-daemon "$TASK"
+./gradlew --no-daemon "$TEST_TASK" "$TASK"
 
 METADATA="$ROOT/app/build/outputs/apk/$CHANNEL/$BUILD_TYPE/output-metadata.json"
 [[ -s "$METADATA" ]] || {
