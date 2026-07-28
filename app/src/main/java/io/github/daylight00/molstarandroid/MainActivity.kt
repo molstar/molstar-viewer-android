@@ -153,7 +153,18 @@ class MainActivity : Activity() {
                 ): Boolean {
                     val uri = request.url
                     if (uri.host == "appassets.androidplatform.net") return false
-                    startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    // Mol* links out over http(s) only. Other schemes, including intent://
+                    // URIs that can address arbitrary components, are not forwarded.
+                    if (uri.scheme != "http" && uri.scheme != "https") {
+                        Log.w(TAG, "Refused to open a non-web link: ${uri.scheme}")
+                        return true
+                    }
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    } catch (error: ActivityNotFoundException) {
+                        Log.w(TAG, "No application can open $uri", error)
+                        toast("No application can open this link")
+                    }
                     return true
                 }
 
@@ -483,6 +494,18 @@ class MainActivity : Activity() {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = flags
         }
+    }
+
+    // Mol* renders through WebGL on an animation frame loop, which keeps drawing
+    // while the activity is in the background unless the WebView itself is paused.
+    override fun onPause() {
+        super.onPause()
+        if (::webView.isInitialized) webView.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) webView.onResume()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
