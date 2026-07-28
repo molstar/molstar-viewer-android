@@ -125,13 +125,16 @@ printf 'MEDIA_URI=%s\n' "$MEDIA_URI" | tee "$EVIDENCE_DIR/media-uri.txt"
   -f 0x00000001 -n "$ACTIVITY" | tee "$EVIDENCE_DIR/launch-structure.txt"
 wait_for_log 'native PDB file completion' '"type":"command-completed"' '"type":"open-files"'
 
-"${adb_cmd[@]}" logcat -d -v threadtime > "$EVIDENCE_DIR/logcat-full.txt"
+# The filtered application log carries the only remaining assertion, so it stays strict.
 "${adb_cmd[@]}" logcat -d -v threadtime MolstarAndroid:D '*:S' > "$EVIDENCE_DIR/logcat-app.txt"
 if grep -F '"type":"error"' "$EVIDENCE_DIR/logcat-app.txt" >/dev/null 2>&1; then
   echo 'viewer emitted an error event' >&2
   exit 1
 fi
-"${adb_cmd[@]}" exec-out screencap -p > "$EVIDENCE_DIR/screenshot.png"
+# Everything below is diagnostic evidence. A busy emulator can cut an unfiltered
+# log dump short, which must not fail a gate whose assertions have already passed.
+"${adb_cmd[@]}" logcat -d -v threadtime > "$EVIDENCE_DIR/logcat-full.txt" || true
+"${adb_cmd[@]}" exec-out screencap -p > "$EVIDENCE_DIR/screenshot.png" || true
 "${adb_cmd[@]}" shell dumpsys activity top > "$EVIDENCE_DIR/dumpsys-activity-top.txt" 2>&1 || true
 "${adb_cmd[@]}" shell dumpsys package "$APP_ID" > "$EVIDENCE_DIR/dumpsys-package.txt" 2>&1 || true
 cp "$FIXTURE" "$EVIDENCE_DIR/fixture.pdb"
