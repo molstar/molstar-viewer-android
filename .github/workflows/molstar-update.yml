@@ -1,13 +1,13 @@
-name: Molstar update candidate
+name: Molstar update
 
 on:
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
 
+# No pull request permission: a verified update is pushed straight to main.
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: molstar-update-candidate
@@ -41,38 +41,8 @@ jobs:
           fs.appendFileSync(output, `available=${value.updateAvailable}\ncurrent=${value.currentVersion}\ntarget=${value.targetVersion}\n`);
           NODE
 
-      - name: Resolve automation branch
-        if: steps.check.outputs.available == 'true'
-        id: branch
-        env:
-          TARGET_VERSION: ${{ steps.check.outputs.target }}
-        run: |
-          safe="$(printf '%s' "$TARGET_VERSION" | tr -cs 'A-Za-z0-9._-' '-')"
-          branch="automation/molstar-$safe"
-          echo "name=$branch" >> "$GITHUB_OUTPUT"
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
-            echo 'exists=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'exists=false' >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Report existing candidate branch
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.branch.outputs.name }}
-          TARGET_VERSION: ${{ steps.check.outputs.target }}
-        run: |
-          url="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url // ""')"
-          {
-            echo "## Molstar $TARGET_VERSION candidate already exists"
-            echo
-            echo "Branch: \`$BRANCH\`"
-            [[ -z "$url" ]] || echo "Pull request: $url"
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Set up Java
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -80,11 +50,11 @@ jobs:
           cache: gradle
 
       - name: Ensure Android SDK
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         run: bash scripts/ci/ensure-android-sdk.sh
 
       - name: Configure release signing
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -105,13 +75,13 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Derive candidate package version
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         env:
           TARGET_VERSION: ${{ steps.check.outputs.target }}
         run: bash scripts/ci/github-version-env.sh candidate "$GITHUB_RUN_NUMBER" "$TARGET_VERSION" >> "$GITHUB_ENV"
 
       - name: Prepare signed update candidate
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         env:
           TARGET_VERSION: ${{ steps.check.outputs.target }}
           UPDATE_OUTPUT_DIR: ${{ runner.temp }}/molstar-update
@@ -120,7 +90,7 @@ jobs:
         run: bash scripts/automation/prepare-molstar-update.sh "$TARGET_VERSION"
 
       - name: Enable KVM
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -132,7 +102,7 @@ jobs:
       # and pull request are created only after the candidate has actually opened a
       # structure file on a device.
       - name: Verify the candidate on an emulator
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: steps.check.outputs.available == 'true'
         uses: reactivecircus/android-emulator-runner@v2
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/molstar-update/emulator-smoke
@@ -144,57 +114,38 @@ jobs:
           disable-animations: true
           script: bash scripts/ci/emulator-smoke.sh candidate release
 
-      - name: Commit and push update branch
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+      # Only a candidate that passed the gate above reaches this point, so the
+      # verified runtime goes straight to main. Nothing else in the run is allowed
+      # to be staged; the scope gate already rejected any change outside the vendor
+      # layer, and `git add` is limited to it again here.
+      - name: Push the verified update to main
+        if: steps.check.outputs.available == 'true'
         env:
-          BRANCH: ${{ steps.branch.outputs.name }}
+          CURRENT_VERSION: ${{ steps.check.outputs.current }}
           TARGET_VERSION: ${{ steps.check.outputs.target }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c "$BRANCH"
           git add app/src/main/assets/viewer/vendor/molstar
           git diff --cached --quiet && { echo 'No update changes were staged' >&2; exit 1; }
           git commit -s -m "chore: update Molstar to $TARGET_VERSION"
-          git push --set-upstream origin "$BRANCH"
-
-      - name: Create update pull request
-        if: steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.branch.outputs.name }}
-          CURRENT_VERSION: ${{ steps.check.outputs.current }}
-          TARGET_VERSION: ${{ steps.check.outputs.target }}
-          UPDATE_OUTPUT_DIR: ${{ runner.temp }}/molstar-update
-        run: |
-          body="$RUNNER_TEMP/molstar-update-pr.md"
-          cat > "$body" <<BODY
-          Automated replacement of the official Molstar Viewer runtime.
-
-          - Current Molstar: \`$CURRENT_VERSION\`
-          - Candidate Molstar: \`$TARGET_VERSION\`
-          - Change boundary: \`app/src/main/assets/viewer/vendor/molstar/**\`
-          - Candidate APK and machine-readable provenance are attached to this workflow run.
-
-          The signed candidate reached \`ready\` on a headless API 36 emulator and
-          completed loading a structure file through an Android intent, with no
-          Viewer error event. Evidence is attached to this workflow run.
-
-          That gate covers the current Android System WebView only. Approval on a
-          physical device is still required before a stable release, not before
-          this merge.
-          BODY
-          gh pr create \
-            --repo "$GITHUB_REPOSITORY" \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore: update Molstar to $TARGET_VERSION" \
-            --body-file "$body"
+          # main may have moved while the candidate was building and verifying.
+          git pull --rebase origin main
+          git push origin HEAD:main
+          {
+            echo "## Molstar updated to \`$TARGET_VERSION\`"
+            echo
+            echo "- Previous: \`$CURRENT_VERSION\`"
+            echo "- Change boundary: \`app/src/main/assets/viewer/vendor/molstar/**\`"
+            echo "- Verified on a headless API 36 emulator before the push."
+            echo
+            echo "Approval on a physical device is still required before a stable release."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Uploaded even when a step above failed, because an unattended weekly run is
       # only actionable if its evidence survives the failure.
       - name: Upload candidate and update report
-        if: always() && steps.check.outputs.available == 'true' && steps.branch.outputs.exists == 'false'
+        if: always() && steps.check.outputs.available == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: molstar-${{ steps.check.outputs.target }}-candidate

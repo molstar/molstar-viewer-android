@@ -18,7 +18,7 @@ The compatibility checks cover only the public surface required by the host, inc
 | Workflow | Trigger | Result |
 |---|---|---|
 | `ci.yml` | push, pull request, manual | candidate debug artifact and emulator smoke evidence |
-| `molstar-update.yml` | weekly, manual | emulator-verified upstream-update branch and candidate |
+| `molstar-update.yml` | weekly, manual | emulator-verified upstream runtime pushed to `main` |
 | `promote.yml` | manual | signed stable GitHub Release |
 
 Workflow YAML remains thin; build, update, signing, and publication logic lives in repository scripts so it can also run locally.
@@ -39,7 +39,17 @@ the OpenGL ES 3.0 that Mol*'s WebGL2 renderer needs. It confirms that the Viewer
 `ready` and that a real structure file completes loading through an Android intent, but it
 does not replace approval on a physical device before a stable release.
 
-Automated upstream preparation is restricted to `app/src/main/assets/viewer/vendor/molstar/**` and never force-pushes an existing update branch. The update workflow runs the emulator gate on its own signed candidate before creating a branch, because a branch pushed with `GITHUB_TOKEN` does not start another workflow and therefore never reaches `ci.yml`.
+Automated upstream preparation is restricted to `app/src/main/assets/viewer/vendor/molstar/**`.
+
+The update workflow builds a signed candidate, runs the emulator gate against it, and only
+then pushes the new runtime to `main`. There is no update branch and no pull request, so the
+workflow holds no pull request permission. The gate has to run inside that workflow rather
+than in `ci.yml`, because a push made with `GITHUB_TOKEN` does not start another workflow.
+
+This makes the gate load-bearing: it is the only check between an upstream release and
+`main`. Removing it, or letting it pass without asserting the Viewer events, would leave
+unattended updates unverified. `scripts/verify-automation-contract.mjs` therefore requires
+the update workflow to invoke `scripts/ci/emulator-smoke.sh`.
 
 ## Signing and stable releases
 
