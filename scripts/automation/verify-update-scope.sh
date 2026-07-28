@@ -28,7 +28,9 @@ if ((${#invalid[@]})); then
   exit 1
 fi
 
-git diff --check "$BASE_REF" --
+# No whitespace lint here. Everything reaching this point is vendored upstream
+# runtime, which is copied byte for byte and must not be reformatted, and the
+# published bundle legitimately carries trailing whitespace.
 printf '%s\n' "${changed[@]}"
 if [[ -n "$SCOPE_REPORT" ]]; then
   mkdir -p "$(dirname "$SCOPE_REPORT")"
