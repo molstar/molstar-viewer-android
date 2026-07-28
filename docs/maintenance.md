@@ -17,7 +17,7 @@ The compatibility checks cover only the public surface required by the host, inc
 
 | Workflow | Trigger | Result |
 |---|---|---|
-| `ci.yml` | push, pull request, manual | candidate debug artifact |
+| `ci.yml` | push, pull request, manual | candidate debug artifact and emulator smoke evidence |
 | `molstar-update.yml` | weekly, manual | bounded upstream-update branch and candidate |
 | `promote.yml` | manual | signed stable GitHub Release |
 
@@ -27,10 +27,17 @@ Useful entry points:
 
 ```bash
 bash scripts/ci/build-channel.sh candidate debug
+bash scripts/ci/emulator-smoke.sh candidate debug
 bash scripts/automation/prepare-molstar-update.sh latest
 bash scripts/ci/simulate-actions.sh
 bash scripts/release/prepare-release.sh
 ```
+
+`emulator-smoke.sh` runs the same adb gate as the device scripts against any attached
+emulator or device. CI runs it on a headless API 36 emulator, where SwiftShader supplies
+the OpenGL ES 3.0 that Mol*'s WebGL2 renderer needs. It confirms that the Viewer reaches
+`ready` and that a real structure file completes loading through an Android intent, but it
+does not replace approval on a physical device before a stable release.
 
 Automated upstream preparation is restricted to `app/src/main/assets/viewer/vendor/molstar/**` and never force-pushes an existing update branch.
 

@@ -37,6 +37,7 @@ required=(
   scripts/ci/github-version-env.sh
   scripts/ci/verify-artifact.mjs
   scripts/ci/simulate-actions.sh
+  scripts/ci/emulator-smoke.sh
   scripts/automation/check-molstar-update.mjs
   scripts/automation/verify-update-scope.sh
   scripts/automation/prepare-molstar-update.sh
@@ -93,6 +94,7 @@ for script in \
   scripts/ci/ensure-android-sdk.sh \
   scripts/ci/github-version-env.sh \
   scripts/ci/simulate-actions.sh \
+  scripts/ci/emulator-smoke.sh \
   scripts/automation/verify-update-scope.sh \
   scripts/automation/prepare-molstar-update.sh \
   scripts/release/prepare-release.sh \
