@@ -205,11 +205,14 @@ case "$VERIFY_BUILD" in
   *) echo "VERIFY_BUILD must be auto, always, or never" >&2; exit 1 ;;
 esac
 
+# AGP generates unit test tasks for debug variants only, so a release variant is
+# covered by its own channel's debug tests. They are plain JVM logic and do not
+# vary by build type.
 case "$VERIFY_VARIANT" in
-  StableDebug) variant_path=stable/debug ;;
-  StableRelease) variant_path=stable/release ;;
-  CandidateDebug) variant_path=candidate/debug ;;
-  CandidateRelease) variant_path=candidate/release ;;
+  StableDebug) variant_path=stable/debug; unit_test_variant=StableDebug ;;
+  StableRelease) variant_path=stable/release; unit_test_variant=StableDebug ;;
+  CandidateDebug) variant_path=candidate/debug; unit_test_variant=CandidateDebug ;;
+  CandidateRelease) variant_path=candidate/release; unit_test_variant=CandidateDebug ;;
   *) echo "VERIFY_VARIANT must be StableDebug, StableRelease, CandidateDebug, or CandidateRelease" >&2; exit 1 ;;
 esac
 
@@ -217,8 +220,8 @@ if [[ "$do_build" == "1" ]]; then
   # Unit tests need the SDK, so they run with the build rather than in the
   # static pass. They cover the transport rules that decide file names and which
   # directory may be deleted.
-  ./gradlew --no-daemon ":app:test${VERIFY_VARIANT}UnitTest"
-  TEST_RESULTS="app/build/test-results/test${VERIFY_VARIANT}UnitTest"
+  ./gradlew --no-daemon ":app:test${unit_test_variant}UnitTest"
+  TEST_RESULTS="app/build/test-results/test${unit_test_variant}UnitTest"
   [[ -d "$TEST_RESULTS" ]] && ls "$TEST_RESULTS"/*.xml >/dev/null 2>&1 || {
     echo "no unit test results were produced in $TEST_RESULTS" >&2
     exit 1

@@ -41,7 +41,10 @@ VARIANT="$CHANNEL_CAP$TYPE_CAP"
 TASK=":app:assemble$VARIANT"
 # This is the entry point CI uses, and it calls verify.sh without a build, so the
 # unit tests have to be requested here too or they never run on a pull request.
-TEST_TASK=":app:test${VARIANT}UnitTest"
+# AGP generates unit test tasks for debug variants only, and these tests are plain
+# JVM logic that does not vary by build type, so a release build runs the same
+# channel's debug unit tests.
+TEST_TASK=":app:test${CHANNEL_CAP}DebugUnitTest"
 
 ./gradlew --no-daemon "$TEST_TASK" "$TASK"
 
