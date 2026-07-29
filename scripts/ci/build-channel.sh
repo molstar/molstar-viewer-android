@@ -92,7 +92,15 @@ CERT_SHA256=""
 APKSIGNER="$(resolve_android_build_tool apksigner)"
 if "$APKSIGNER" verify --verbose --print-certs "$ARTIFACT_OUTPUT_DIR/$ARTIFACT_APK" > "$ARTIFACT_OUTPUT_DIR/apksigner.txt" 2>&1; then
   SIGNED=true
-  CERT_SHA256="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$ARTIFACT_OUTPUT_DIR/apksigner.txt" | head -n 1 | tr -d ':[:space:]')"
+  # apksigner reports the certificate as "Signer #1 certificate ..." in older
+  # build-tools and "V2 Signer: certificate ..." in newer ones, so accept both
+  # rather than silently recording no certificate at all.
+  CERT_SHA256="$(sed -nE 's/^(Signer #[0-9]+|V[0-9.]+ Signer:)[[:space:]]+certificate SHA-256 digest:[[:space:]]*//p' "$ARTIFACT_OUTPUT_DIR/apksigner.txt" | head -n 1 | tr -d ':[:space:]')"
+  [[ -n "$CERT_SHA256" ]] || {
+    echo 'APK verified as signed but no certificate SHA-256 could be read from apksigner' >&2
+    sed -n '1,20p' "$ARTIFACT_OUTPUT_DIR/apksigner.txt" >&2
+    exit 1
+  }
 else
   if [[ "$BUILD_TYPE" == "debug" || "$ALLOW_UNSIGNED_RELEASE" != "1" ]]; then
     cat "$ARTIFACT_OUTPUT_DIR/apksigner.txt" >&2

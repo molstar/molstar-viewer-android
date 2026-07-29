@@ -31,6 +31,11 @@ if (manifest.channel === 'candidate' && manifest.buildType === 'debug' && manife
 }
 if (!Number.isInteger(manifest.versionCode) || manifest.versionCode <= 0) throw new Error('Invalid versionCode');
 if (typeof manifest.signed !== 'boolean') throw new Error('signed must be boolean');
+// The certificate digest is the app's permanent identity, so a signed artifact that
+// cannot state it has lost the one fact its provenance record exists to carry.
+if (manifest.signed && !/^[0-9a-f]{64}$/.test(manifest.certificateSha256 ?? '')) {
+    throw new Error('signed artifact must record a 64 character signing certificate SHA-256');
+}
 
 const apkPath = path.resolve(path.dirname(manifestPath), manifest.apkFile);
 const stat = fs.statSync(apkPath);
