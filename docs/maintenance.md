@@ -51,6 +51,18 @@ This makes the gate load-bearing: it is the only check between an upstream relea
 unattended updates unverified. `scripts/verify-automation-contract.mjs` therefore requires
 the update workflow to invoke `scripts/ci/emulator-smoke.sh`.
 
+Every action in the workflows is pinned to a commit SHA, with the release tag in a trailing
+comment, and the contract script rejects a tag reference. To move to a newer release, resolve
+the tag to its commit (`gh api repos/<owner>/<action>/commits/<tag> --jq .sha`) and replace
+both the SHA and the comment. In the update workflow the signing key is read only by the
+build step and removed when that step ends, so the third-party emulator action never sees it.
+
+When a scheduled update run fails, the `notify` job opens one issue labelled
+`automation-failure` and adds a comment to it on later failures. Close the issue once a run
+succeeds. The same job re-enables the workflow on every scheduled run as a best-effort guard
+against GitHub disabling schedules after 60 days without repository activity; if the weekly
+runs stop appearing, check the Actions tab and enable the workflow by hand.
+
 ## Signing and stable releases
 
 Stable Android updates require the same application ID and long-lived signing identity. Candidate builds use a separate application ID so they can be installed beside stable.
@@ -61,7 +73,7 @@ Configure repository signing secrets from a trusted workstation with:
 bash scripts/release/configure-github-signing.sh
 ```
 
-The helper manages the permanent keystore outside the repository and configures the encrypted GitHub secrets expected by the workflows.
+The helper manages the permanent keystore outside the repository and configures the encrypted GitHub secrets expected by the workflows. GitHub secrets cannot be read back, so keep an encrypted offline copy of the keystore and its passwords. Losing either means stable updates can no longer be signed with the installed identity, and every user would have to uninstall and reinstall.
 
 Stable promotion is manual. The workflow accepts only the full commit SHA currently at `main`, and that exact commit must first be installed and approved on a real Android device.
 

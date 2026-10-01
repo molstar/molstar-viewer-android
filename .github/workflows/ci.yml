@@ -21,17 +21,17 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
@@ -46,7 +46,7 @@ jobs:
         run: bash scripts/ci/build-channel.sh candidate debug
 
       - name: Publish candidate debug artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: candidate-debug-${{ github.sha }}
           path: artifacts/ci-candidate-debug/
@@ -72,10 +72,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download candidate debug artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: candidate-debug-${{ github.sha }}
           path: artifacts/ci-candidate-debug
@@ -94,14 +94,14 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
 
       - name: Run adb runtime smoke gate
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           EVIDENCE_DIR: ${{ github.workspace }}/artifacts/emulator-smoke
         with:
@@ -115,7 +115,7 @@ jobs:
 
       - name: Publish smoke evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: emulator-smoke-${{ github.sha }}
           path: artifacts/emulator-smoke/
