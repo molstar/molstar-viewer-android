@@ -1,4 +1,4 @@
-package io.github.daylight00.molstarandroid
+package org.molstar.viewer
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -19,7 +19,7 @@ for (const key of required) {
 if (manifest.schemaVersion !== 1) throw new Error(`Unsupported artifact schema ${manifest.schemaVersion}`);
 if (!['stable', 'candidate'].includes(manifest.channel)) throw new Error('Invalid channel');
 if (!['debug', 'release'].includes(manifest.buildType)) throw new Error('Invalid build type');
-const expectedBase = 'io.github.daylight00.molstarandroid';
+const expectedBase = 'org.molstar.viewer';
 if (manifest.channel === 'stable' && manifest.buildType === 'release' && manifest.applicationId !== expectedBase) {
     throw new Error('Stable release applicationId is incorrect');
 }

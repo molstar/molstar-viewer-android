@@ -54,11 +54,11 @@ if (hasAnySigningValue && !hasCompleteSigning) {
 }
 
 android {
-    namespace = "io.github.daylight00.molstarandroid"
+    namespace = "org.molstar.viewer"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.daylight00.molstarandroid"
+        applicationId = "org.molstar.viewer"
         minSdk = 24
         targetSdk = 36
         versionCode = configuredVersionCode

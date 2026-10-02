@@ -1,4 +1,4 @@
-package io.github.daylight00.molstarandroid
+package org.molstar.viewer
 
 import android.annotation.SuppressLint
 import android.app.Activity

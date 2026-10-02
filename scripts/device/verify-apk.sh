@@ -4,10 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APK_PATH="${APK_PATH:-${1:-}}"
 FIXTURE="${FIXTURE:-$ROOT/scripts/device/fixtures/minimal-ala.pdb}"
-APP_ID="${APP_ID:-io.github.daylight00.molstarandroid.candidate}"
+APP_ID="${APP_ID:-org.molstar.viewer.candidate}"
 # The launcher class stays in the Gradle namespace, which the candidate and debug
 # applicationId suffixes do not share, so the "$APP_ID/.Class" shorthand cannot be used.
-ACTIVITY="${ACTIVITY:-$APP_ID/io.github.daylight00.molstarandroid.MainActivity}"
+ACTIVITY="${ACTIVITY:-$APP_ID/org.molstar.viewer.MainActivity}"
 WAIT_SECONDS="${WAIT_SECONDS:-45}"
 KEEP_DEVICE_FIXTURE="${KEEP_DEVICE_FIXTURE:-0}"
 UTC="$(date -u +%Y%m%dT%H%M%SZ)"

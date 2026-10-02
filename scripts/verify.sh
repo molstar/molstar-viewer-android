@@ -21,7 +21,7 @@ required=(
   app/src/main/assets/viewer/vendor/molstar/VERSION
   app/src/main/assets/viewer/vendor/molstar/UPSTREAM.json
   app/src/main/assets/viewer/vendor/molstar/SHA256SUMS
-  app/src/test/java/io/github/daylight00/molstarandroid/NativeFileTransportTest.kt
+  app/src/test/java/org/molstar/viewer/NativeFileTransportTest.kt
   scripts/device/fixtures/minimal-ala.pdb
   scripts/device/verify-apk.sh
   scripts/device/verify-debug-apk.sh
@@ -114,8 +114,8 @@ done
   diff -u "$declared" "$actual"
 )
 
-MAIN=app/src/main/java/io/github/daylight00/molstarandroid/MainActivity.kt
-CONTRACT=app/src/main/java/io/github/daylight00/molstarandroid/ViewerContract.kt
+MAIN=app/src/main/java/org/molstar/viewer/MainActivity.kt
+CONTRACT=app/src/main/java/org/molstar/viewer/ViewerContract.kt
 MANIFEST=app/src/main/AndroidManifest.xml
 BUILD=app/build.gradle.kts
 BRIDGE=app/src/main/assets/viewer/app-bridge.js
