@@ -51,6 +51,14 @@ This makes the gate load-bearing: it is the only check between an upstream relea
 unattended updates unverified. `scripts/verify-automation-contract.mjs` therefore requires
 the update workflow to invoke `scripts/ci/emulator-smoke.sh`.
 
+### Unattended safeguards
+
+- **Pinned actions** — every `uses:` is a commit SHA with the release tag as a comment; the contract check rejects tags.
+- **Updating a pin** — `gh api repos/<owner>/<action>/commits/<tag> --jq .sha`, then replace the SHA and the comment.
+- **Signing key** — read only by the build step and deleted when it ends; the third-party emulator action never sees it.
+- **Failures** — `notify` opens one `automation-failure` issue and comments on it for later failures; close it once a run succeeds.
+- **Schedule** — `notify` re-enables the workflow on each scheduled run, as GitHub disables schedules after 60 days without activity; best effort, so check the Actions tab if weekly runs stop.
+
 ## Signing and stable releases
 
 Stable Android updates require the same application ID and long-lived signing identity. Candidate builds use a separate application ID so they can be installed beside stable.
@@ -62,6 +70,8 @@ bash scripts/release/configure-github-signing.sh
 ```
 
 The helper manages the permanent keystore outside the repository and configures the encrypted GitHub secrets expected by the workflows.
+
+Secrets cannot be read back: keep an encrypted offline copy of the keystore and its passwords. Losing either forces every user to reinstall.
 
 Stable promotion is manual. The workflow accepts only the full commit SHA currently at `main`, and that exact commit must first be installed and approved on a real Android device.
 
