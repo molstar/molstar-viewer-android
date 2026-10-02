@@ -1,4 +1,4 @@
-package io.github.daylight00.molstarandroid
+package org.molstar.viewer
 
 /**
  * Naming and identity rules for the native file transport.

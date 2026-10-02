@@ -13,7 +13,7 @@ BUILD_TYPE="${2:-debug}"
 case "$CHANNEL" in stable|candidate) ;; *) echo "channel must be stable or candidate" >&2; exit 1 ;; esac
 case "$BUILD_TYPE" in debug|release) ;; *) echo "build type must be debug or release" >&2; exit 1 ;; esac
 
-APP_ID="io.github.daylight00.molstarandroid"
+APP_ID="org.molstar.viewer"
 if [[ "$CHANNEL" == "candidate" ]]; then
   APP_ID="$APP_ID.candidate"
 fi
