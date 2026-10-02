@@ -19,13 +19,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out main
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
 
@@ -43,7 +43,7 @@ jobs:
 
       - name: Set up Java
         if: steps.check.outputs.available == 'true'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
@@ -53,9 +53,23 @@ jobs:
         if: steps.check.outputs.available == 'true'
         run: bash scripts/ci/ensure-android-sdk.sh
 
-      - name: Configure release signing
+      - name: Derive candidate package version
         if: steps.check.outputs.available == 'true'
         env:
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+        run: bash scripts/ci/github-version-env.sh candidate "$GITHUB_RUN_NUMBER" "$TARGET_VERSION" >> "$GITHUB_ENV"
+
+      # The signing key exists only inside this step: it is passed through this
+      # step's environment, never GITHUB_ENV, and the keystore file is deleted when
+      # the step ends. The emulator step below runs a third-party action and only
+      # installs the finished APK, so it has no use for the key and must not see it.
+      - name: Prepare signed update candidate
+        if: steps.check.outputs.available == 'true'
+        env:
+          TARGET_VERSION: ${{ steps.check.outputs.target }}
+          UPDATE_OUTPUT_DIR: ${{ runner.temp }}/molstar-update
+          UPDATE_BUILD_TYPE: release
+          BUILD_CANDIDATE: '1'
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -65,29 +79,14 @@ jobs:
             [[ -n "${!name}" ]] || { echo "Missing signing secret: $name" >&2; exit 1; }
           done
           keystore="$RUNNER_TEMP/sideload.jks"
+          trap 'rm -f "$keystore"' EXIT
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
           chmod 600 "$keystore"
-          {
-            echo "MOLSTAR_ANDROID_KEYSTORE_FILE=$keystore"
-            echo "MOLSTAR_ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
-            echo "MOLSTAR_ANDROID_KEY_ALIAS=$KEY_ALIAS"
-            echo "MOLSTAR_ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
-          } >> "$GITHUB_ENV"
-
-      - name: Derive candidate package version
-        if: steps.check.outputs.available == 'true'
-        env:
-          TARGET_VERSION: ${{ steps.check.outputs.target }}
-        run: bash scripts/ci/github-version-env.sh candidate "$GITHUB_RUN_NUMBER" "$TARGET_VERSION" >> "$GITHUB_ENV"
-
-      - name: Prepare signed update candidate
-        if: steps.check.outputs.available == 'true'
-        env:
-          TARGET_VERSION: ${{ steps.check.outputs.target }}
-          UPDATE_OUTPUT_DIR: ${{ runner.temp }}/molstar-update
-          UPDATE_BUILD_TYPE: release
-          BUILD_CANDIDATE: '1'
-        run: bash scripts/automation/prepare-molstar-update.sh "$TARGET_VERSION"
+          export MOLSTAR_ANDROID_KEYSTORE_FILE="$keystore"
+          export MOLSTAR_ANDROID_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD"
+          export MOLSTAR_ANDROID_KEY_ALIAS="$KEY_ALIAS"
+          export MOLSTAR_ANDROID_KEY_PASSWORD="$KEY_PASSWORD"
+          bash scripts/automation/prepare-molstar-update.sh "$TARGET_VERSION"
 
       - name: Enable KVM
         if: steps.check.outputs.available == 'true'
@@ -103,7 +102,7 @@ jobs:
       # structure file on a device.
       - name: Verify the candidate on an emulator
         if: steps.check.outputs.available == 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/molstar-update/emulator-smoke
         with:
@@ -146,7 +145,7 @@ jobs:
       # only actionable if its evidence survives the failure.
       - name: Upload candidate and update report
         if: always() && steps.check.outputs.available == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: molstar-${{ steps.check.outputs.target }}-candidate
           path: ${{ runner.temp }}/molstar-update/
@@ -159,3 +158,44 @@ jobs:
           echo '## Molstar is already current' >> "$GITHUB_STEP_SUMMARY"
           echo >> "$GITHUB_STEP_SUMMARY"
           echo "Current version: \`${{ steps.check.outputs.current }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # Separate job so the permissions below never reach the job that holds the
+  # signing key. An unattended weekly run that fails would otherwise only show up
+  # as an email, so the failure is also recorded as one open issue that later
+  # failures add to instead of opening a new one each week.
+  notify:
+    needs: update
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Report a failed update run
+        if: needs.update.result == 'failure'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          label='automation-failure'
+          gh label create "$label" --color B60205 \
+            --description 'The unattended Mol* update workflow failed' 2>/dev/null || true
+          body="The Molstar update workflow failed: $RUN_URL"
+          number="$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --label "$label" \
+              --title 'Molstar update workflow is failing' \
+              --body "$body"$'\n\nThe weekly run opens no new issue while this one is open. Close it once a run succeeds.'
+          fi
+
+      # GitHub disables scheduled workflows in a public repository after 60 days
+      # without repository activity, and a blocked update means no commits. Enabling
+      # the workflow on every scheduled run is a best-effort keepalive.
+      - name: Keep the schedule enabled
+        if: github.event_name == 'schedule'
+        run: gh api --method PUT "repos/$GH_REPO/actions/workflows/molstar-update.yml/enable"

@@ -19,8 +19,11 @@ function requireMatch(condition, message) {
 }
 function requireOfficialActions(workflow, name) {
     for (const action of ['actions/checkout@v7', 'actions/setup-node@v7', 'actions/setup-java@v5', 'actions/upload-artifact@v7']) {
-        if (action.includes('setup-java') && name === 'Molstar update' && !workflow.includes(action)) continue;
-        requireMatch(workflow.includes(action), `${name} must use ${action}`);
+        const [repo, major] = action.split('@');
+        requireMatch(new RegExp(`uses: ${repo}@[0-9a-f]{40} # ${major}\\b`).test(workflow), `${name} must use ${action} pinned to a commit SHA`);
+    }
+    for (const line of workflow.split('\n').filter(line => /^\s*(-\s+)?uses:/.test(line))) {
+        requireMatch(/@[0-9a-f]{40}\s+# \S+/.test(line), `${name} must pin every action to a commit SHA: ${line.trim()}`);
     }
     requireMatch(!workflow.includes('pull_request_target'), `${name} must not use pull_request_target`);
 }
@@ -53,6 +56,9 @@ requireMatch(updateWorkflow.includes('contents: write'), 'update workflow cannot
 requireMatch(!updateWorkflow.includes('pull-requests:'), 'update workflow must not hold pull request permission it no longer uses');
 requireMatch(updateWorkflow.includes('scripts/ci/emulator-smoke.sh'), 'update workflow must gate the candidate on the runtime smoke test before pushing to main');
 requireMatch(updateWorkflow.includes('scripts/automation/prepare-molstar-update.sh'), 'update workflow must delegate to the repository update script');
+requireMatch(!/echo\s+"MOLSTAR_ANDROID_KEY/.test(updateWorkflow),'update workflow must not export signing material to later steps');
+requireMatch((updateWorkflow.match(/secrets\.ANDROID_KEYSTORE_BASE64/g) || []).length === 1 && updateWorkflow.indexOf('secrets.ANDROID_KEYSTORE_BASE64') < updateWorkflow.indexOf('android-emulator-runner'), 'signing secrets must be read once, by the build step before the emulator step');
+requireMatch(updateWorkflow.includes('automation-failure'), 'update workflow must record failed unattended runs');
 requireMatch(updateWorkflow.includes('app/src/main/assets/viewer/vendor/molstar'), 'update workflow must stage only the upstream vendor layer');
 requireMatch(promoteWorkflow.includes('workflow_dispatch'), 'stable promotion must be manual');
 requireMatch(promoteWorkflow.includes('approved_commit'), 'stable promotion must require the device-approved commit SHA');
