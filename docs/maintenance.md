@@ -51,17 +51,13 @@ This makes the gate load-bearing: it is the only check between an upstream relea
 unattended updates unverified. `scripts/verify-automation-contract.mjs` therefore requires
 the update workflow to invoke `scripts/ci/emulator-smoke.sh`.
 
-Every action in the workflows is pinned to a commit SHA, with the release tag in a trailing
-comment, and the contract script rejects a tag reference. To move to a newer release, resolve
-the tag to its commit (`gh api repos/<owner>/<action>/commits/<tag> --jq .sha`) and replace
-both the SHA and the comment. In the update workflow the signing key is read only by the
-build step and removed when that step ends, so the third-party emulator action never sees it.
+### Unattended safeguards
 
-When a scheduled update run fails, the `notify` job opens one issue labelled
-`automation-failure` and adds a comment to it on later failures. Close the issue once a run
-succeeds. The same job re-enables the workflow on every scheduled run as a best-effort guard
-against GitHub disabling schedules after 60 days without repository activity; if the weekly
-runs stop appearing, check the Actions tab and enable the workflow by hand.
+- **Pinned actions** — every `uses:` is a commit SHA with the release tag as a comment; the contract check rejects tags.
+- **Updating a pin** — `gh api repos/<owner>/<action>/commits/<tag> --jq .sha`, then replace the SHA and the comment.
+- **Signing key** — read only by the build step and deleted when it ends; the third-party emulator action never sees it.
+- **Failures** — `notify` opens one `automation-failure` issue and comments on it for later failures; close it once a run succeeds.
+- **Schedule** — `notify` re-enables the workflow on each scheduled run, as GitHub disables schedules after 60 days without activity; best effort, so check the Actions tab if weekly runs stop.
 
 ## Signing and stable releases
 
@@ -73,7 +69,9 @@ Configure repository signing secrets from a trusted workstation with:
 bash scripts/release/configure-github-signing.sh
 ```
 
-The helper manages the permanent keystore outside the repository and configures the encrypted GitHub secrets expected by the workflows. GitHub secrets cannot be read back, so keep an encrypted offline copy of the keystore and its passwords. Losing either means stable updates can no longer be signed with the installed identity, and every user would have to uninstall and reinstall.
+The helper manages the permanent keystore outside the repository and configures the encrypted GitHub secrets expected by the workflows.
+
+Secrets cannot be read back: keep an encrypted offline copy of the keystore and its passwords. Losing either forces every user to reinstall.
 
 Stable promotion is manual. The workflow accepts only the full commit SHA currently at `main`, and that exact commit must first be installed and approved on a real Android device.
 
