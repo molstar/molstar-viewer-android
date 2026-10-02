@@ -1,8 +1,8 @@
 {
   "package": "molstar",
-  "version": "5.11.0",
-  "filename": "molstar-5.11.0.tgz",
-  "tarballSha256": "37fc3df9c1b2d8cd4ab5a90fef316ba1a9fcd9bc1f760095453f6c06dcf10c46",
+  "version": "5.12.0",
+  "filename": "molstar-5.12.0.tgz",
+  "tarballSha256": "ab7377b8eebd1276546e89a148573e9f5252176ddf7cac77d5181903e72bd5bb",
   "source": "npm",
   "copiedPath": "build/viewer",
   "excluded": [
